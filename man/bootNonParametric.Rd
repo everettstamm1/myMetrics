@@ -34,8 +34,11 @@ k is the degrees of freedom),  "leverage", where transform is f(u) = u/((1-h)^.5
 \item{suppressConstant}{logical. If true, there will be no constant term added to the regression. Defaults to false.}
 }
 \description{
-This function takes a vector of a dependent variable, a vector of a single independent variable or a list of
-several independent variables, a number of bootstrap repetitions, a hypothesis, and a option to rescale the residuals
-and performs restricted residual resampling. To learn more about the theory, please read section 3.1 of "Bootstrap Methods
+This function takes a vector or matrix of a dependent variable, a vector or matrix of independent variable(s), a number of bootstrap repetitions, a hypothesis, and a option to rescale the residuals
+and performs restricted residual resampling for the hypothesis test (specified by hypothesisValue) on the coefficient of a variable (specified by hypothesisColumn) against its two tailed alternative
+in the context of a ordinary least squares regression.
+}
+\details{
+To learn more about the theory, please read section 3.1 of "Bootstrap Methods
 in Econometrics" by James A. MacKinnon, Queen’s Economics Department Working Paper No. 1028, 2006.
 }
