@@ -11,11 +11,13 @@ bootWild(
   hypothesisColumn,
   hypothesisValue,
   rv,
-  transform = TRUE,
+  transform,
   suppressConstant = FALSE
 )
 }
 \arguments{
+\item{dependent}{numeric vector of dependent variable}
+
 \item{independents}{matrix of independent variable(s), do not include constant term.}
 
 \item{repetitions}{number of bootstrap repetitions to be performed}
@@ -26,12 +28,10 @@ bootWild(
 
 \item{rv}{Distribution of random variable (with mean 0 and variance 1) to multiply the residuals by. Acceptable types are 'mammen', 'rademacher', and 'standard normal'.}
 
-\item{transform}{Whether or not to transform the t-th residual by 1/(1-ht)^.5, where ht is the t-th diagonal of the hat matrix \code{X((X^t*X)^-1)*X^t}.
-This is typically done when some observations have high leverage.}
+\item{transform}{Type of transform to apply to residuals. Acceptable values are "simple", where transform is f(u) = u(n/(n-k))^.5 (n is the number of observations and
+k is the degrees of freedom),  "leverage", where transform is f(u) = u/((1-h)^.5) (h is the diagonal of the hat matrix), or "none".}
 
 \item{suppressConstant}{logical. If true, there will be no constant term added to the regression. Defaults to false.}
-
-\item{dependents}{numeric vector of dependent variable}
 }
 \value{
 A character string detailing the resulting p-value of the test.

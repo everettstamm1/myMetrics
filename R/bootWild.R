@@ -6,52 +6,53 @@
 #' in Econometrics" by James A. MacKinnon, Queen’s Economics Department Working Paper No. 1028, 2006.
 #'
 #'
-#' @param dependents numeric vector of dependent variable
+#' @param dependent numeric vector of dependent variable
 #' @param independents matrix of independent variable(s), do not include constant term.
 #' @param repetitions number of bootstrap repetitions to be performed
 #' @param hypothesisColumn column index in 'independents' of which coefficient restriction will be tested
 #' @param hypothesisValue hypothesized value of the coefficient of hypothesisColumn, numeric
 #' @param rv Distribution of random variable (with mean 0 and variance 1) to multiply the residuals by. Acceptable types are 'mammen', 'rademacher', and 'standard normal'.
-#' @param transform Whether or not to transform the t-th residual by 1/(1-ht)^.5, where ht is the t-th diagonal of the hat matrix `X((X^t*X)^-1)*X^t`.
-#' This is typically done when some observations have high leverage.
+#' @param transform Type of transform to apply to residuals. Acceptable values are "simple", where transform is f(u) = u(n/(n-k))^.5 (n is the number of observations and
+#' k is the degrees of freedom),  "leverage", where transform is f(u) = u/((1-h)^.5) (h is the diagonal of the hat matrix), or "none".
 #' @param suppressConstant logical. If true, there will be no constant term added to the regression. Defaults to false.
 #' @return A character string detailing the resulting p-value of the test.
 #' @export
-bootWild <- function(dependent,independents,repetitions,hypothesisColumn,hypothesisValue, rv, transform = TRUE,suppressConstant = FALSE){
+bootWild <- function(dependent,independents,repetitions,hypothesisColumn,hypothesisValue, rv, transform,suppressConstant = FALSE){
   #Making sure all the inputs are cool and if dependent or independent are vectors, making the matrices
   dependent <- checkDependent(dependent)
   hypothesisColumn <- checkSuppress(suppressConstant,hypothesisColumn)
   independents <- checkIndependent(independents,suppressConstant)
   checkHypothesis(independents,hypothesisColumn,hypothesisValue)
-  if(transform != TRUE & transform != FALSE)
-    return(stop("transform must be of type logical"))
+  if(transform != "simple" & transform != "leverage" & transform != "none")
+    return(stop("transform must be either 'simple', 'leverage', or 'none'"))
   checkReps(repetitions)
   if(nrow(dependent) != nrow(independents))
     return(stop("dependent and independent matrices have different number of observations."))
   if(ncol(independents) == 1 & suppressConstant){
-
+    return(stop("Cannot have number of independent variables be one and have suppressConstant==TRUE"))
   }
 
   #Premultiplying (Xt*X)^-1 and ((Xt*X)^-1)*Xt so it doesn't need to be done at every recursion of the helper functions
   invXtX <- solve(t(independents) %*% independents)
-  invXtX_tX <- invXtX %*% t(independents)
+  invXtX_Xt <- invXtX %*% t(independents)
 
   #Creating base sample estimates
   n <- nrow(independents)
   k <- ncol(independents)
-  b_ols <- invXtX_tX %*% dependent
+  b_ols <- invXtX_Xt %*% dependent
   u_ols <- dependent - independents %*% b_ols
   se_ols <- sqrt(diag(c((t(u_ols) %*% u_ols)/(n-k)) * invXtX))
   t_ols <- (b_ols[hypothesisColumn]-hypothesisValue)/se_ols[hypothesisColumn]
 
 
   #Creating bootstrapped dependent values
-  Y_star <- setupWild(dependent,independents,hypothesisColumn,hypothesisValue, repetitions,rv,invXtX_tX, transform)
+  y_u_star <- setupWild(dependent,independents,hypothesisColumn,hypothesisValue, repetitions,rv,invXtX_Xt, transform)
+
 
 
 
   #Creating t-values for each bootstrap iteration
-  t_vals <- runWild(Y_star,independents,hypothesisColumn,hypothesisValue,invXtX,invXtX_tX,t_vec = c())
+  t_vals <- runWild(y_u_star[[1]],y_u_star[[2]],independents,hypothesisColumn,hypothesisValue,invXtX,invXtX_Xt,t_vec = c())
 
 
   #Creating Bootstrap P Values
@@ -95,8 +96,9 @@ randomVariableMatrix <- function(type,n,m){
 }
 
 #Creates a matrix of iterations of bootstrapped dependent values. Number of iterations specified by 'repetitions.'
-setupWild <- function(dep,indep,hypInd,hypVal,Repetitions,rv,invXtX_tX,transform){
+setupWild <- function(dep,indep,hypInd,hypVal,Repetitions,rv,invXtX_Xt,transform){
   n <- length(dep)
+  k <- ncol(indep)
   Y_res <- dep - hypVal*indep[,hypInd]
   X_res <- NULL
   b_res <- NULL
@@ -111,37 +113,38 @@ setupWild <- function(dep,indep,hypInd,hypVal,Repetitions,rv,invXtX_tX,transform
 
   v <- randomVariableMatrix(rv, n,Repetitions)
   u_star <- v*c(u_res)
-  if(transform == TRUE){
-    h <- diag(indep %*%invXtX_tX)
+  if(transform == "simple"){
+    u_star <- u_star*((n/(n-k))^.5)
+  }else if(transform == "leverage"){
+    h <- diag(indep %*%invXtX_Xt)
     u_star <- u_star/(1-h)^.5
   }
   if(ncol(indep) >1){
     Y_star <- c(hypVal*indep[,hypInd] + X_res %*% b_res) + u_star
-    return(Y_star)
   }else{
     Y_star <- c(hypVal*indep[,hypInd]) + u_star
-    return(Y_star)
   }
-
+  return(list(Y_star,u_star))
 }
 
 #Creates t-values for all iterations of the restriction test.
-runWild <- function(Y_stars,indep,index,h,invXtX,invXtX_tX,t_vec){
-  if(length(Y_stars) == nrow(indep)){
-    b_star <- invXtX_tX %*% Y_stars
+runWild <- function(Y_stars,u_stars,indep,index,h,invXtX,invXtX_Xt,t_vec){
+  if(is.null(ncol(Y_stars))){
+    b_star <- invXtX_Xt %*% Y_stars
     u_star <- Y_stars - indep %*% b_star
-    se_star <- sqrt(diag(c((t(u_star) %*% u_star)/(nrow(indep)-ncol(indep))) * invXtX))
+    se_star <- sqrt(diag(c((t(u_stars) %*% u_stars)/(nrow(indep)-ncol(indep))) * invXtX))
     t_star <- (b_star[index]-h)/se_star[index]
     t_vec <- c(t_vec,t_star)
     return(t_vec)
   }else{
-    b_star <- invXtX_tX %*% Y_stars[,1]
+    b_star <- invXtX_Xt %*% Y_stars[,1]
     u_star <- Y_stars[,1] - indep %*% b_star
-    se_star <- sqrt(diag(c((t(u_star) %*% u_star)/(nrow(indep)-ncol(indep))) * invXtX))
+    se_star <- sqrt(diag(c((t(u_stars[,1]) %*% u_stars[,1])/(nrow(indep)-ncol(indep))) * invXtX))
     t_star <- (b_star[index]-h)/se_star[index]
     t_vec <- c(t_vec,t_star)
     Y_stars <- Y_stars[,-c(1)]
-    return(runWild(Y_stars,indep,index,h,invXtX,invXtX_tX,t_vec))
+    u_stars <- u_stars[,-c(1)]
+    return(runWild(Y_stars,u_stars,indep,index,h,invXtX,invXtX_Xt,t_vec))
   }
 }
 
@@ -169,6 +172,7 @@ checkIndependent <- function(a,s){
   return(a)
 }
 
+#' @noRd
 checkSuppress <- function(s,hypCol){
   if(s == TRUE){
     return(hypCol)
@@ -206,20 +210,5 @@ checkReps <- function(a){
     return(stop("Repetitions must be a number."))
   }else if(a <=0){
     return(stop("Repetitions must be greater than zero"))
-  }
-}
-
-checkLengths <- function(dep,ind){
-  vec <- c()
-  vec <- c(vec,length(dep))
-  if(typeof(ind) == "list"){
-    for(i in 1:length(ind)){
-      vec <- c(vec,length(ind[[i]]))
-    }
-  }else{
-    vec <- c(vec,length(ind))
-  }
-  if(length(unique(vec)) >1){
-    return(stop("Differing number of observations in variables"))
   }
 }

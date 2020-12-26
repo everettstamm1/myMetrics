@@ -5,29 +5,33 @@
 \title{Non-Parametric Restricted Residual Resampling Bootstrap}
 \usage{
 bootNonParametric(
-  Dependent,
-  Independents,
-  Repetitions,
-  Hypothesis,
-  rescale = FALSE
+  dependent,
+  independents,
+  repetitions,
+  hypothesisColumn,
+  hypothesisValue,
+  transform,
+  replace,
+  suppressConstant
 )
 }
 \arguments{
-\item{Independents}{numeric vector or list of numeric vectors of independent variable(s)}
+\item{dependent}{numeric vector of dependent variable}
 
-\item{Repetitions}{number of bootstrap repetitions to be performed}
+\item{independents}{matrix of independent variable(s), do not include constant term.}
 
-\item{Hypothesis}{Linear restriction to be tested, must be of the format "Xi = h" where the i-th vector in the Independent
-list of vectors is the variable you wish to test a restriction on and h is the restriction. Note: if you have multiple digits of independent variables,
-you must enter the hypothesis with all digits, i.e. if you have 100 independent variables and you wish to test a restriction on
-the 3-rd vector in the Independent list of vectors, your hypothesis should be written "X003 = h", rather than "X3 = h".}
+\item{repetitions}{number of bootstrap repetitions to be performed}
 
-\item{rescale}{Whether or not to rescale the residuals by (n/(n-k))^.5. This is typically done to ensure residuals have correct variance.}
+\item{hypothesisColumn}{column index in 'independents' of which coefficient restriction will be tested}
 
-\item{Dependents}{numeric vector of dependent variable}
-}
-\value{
-A character string detailing the resulting p-value of the test.
+\item{hypothesisValue}{hypothesized value of the coefficient of hypothesisColumn, numeric}
+
+\item{transform}{Type of transform to apply to residuals. Acceptable values are "simple", where transform is f(u) = u(n/(n-k))^.5 (n is the number of observations and
+k is the degrees of freedom),  "leverage", where transform is f(u) = u/((1-h)^.5) (h is the diagonal of the hat matrix), or "none".}
+
+\item{replace}{Whether or not to sample residuals with replacement. Logical}
+
+\item{suppressConstant}{logical. If true, there will be no constant term added to the regression. Defaults to false.}
 }
 \description{
 This function takes a vector of a dependent variable, a vector of a single independent variable or a list of

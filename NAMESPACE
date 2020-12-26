@@ -2,3 +2,7 @@
 
 export(bootNonParametric)
 export(bootWild)
+importFrom(stats,lm)
+importFrom(stats,na.fail)
+importFrom(stats,rnorm)
+importFrom(stats,runif)
