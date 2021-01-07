@@ -1,4 +1,4 @@
-#' Wild Bootstrap Hypothesis Testing
+#' Wild Bootstrap Confidence Intervals
 #'
 #' This function takes a vector or matrix of a dependent variable, a vector or matrix of independent variable(s), a number of bootstrap repetitions, a hypothesis, and a option to rescale the residuals
 #' and creates confidence intervals using the wild bootstrap for the coefficient of a variable (specified by hypothesisColumn) in the context of a ordinary least squares regression.
@@ -15,11 +15,12 @@
 #' @param transform Type of transform to apply to residuals. Acceptable values are "simple", where transform is f(u) = u(n/(n-k))^.5 (n is the number of observations and
 #' k is the degrees of freedom),  "leverage", where transform is f(u) = u/((1-h)^.5) (h is the diagonal of the hat matrix), or "none".
 #' @param suppressConstant logical. If true, there will be no constant term added to the regression. Defaults to false.
-#' @return A character string detailing the resulting p-value of the test.
+#' @return Numerical pair of the lower and upper bound of the confidence interval.
 #' @export
 bootWildCI <- function(dependent,independents,repetitions,hypothesisColumn,alpha,rv,transform,suppressConstant = FALSE){
   #Making sure all the inputs are cool and if dependent or independent are vectors, making the matrices
   dependent <- checkDependent(dependent)
+  hypothesisColumnSkipCons <- hypothesisColumn
   hypothesisColumn <- checkSuppress(suppressConstant,hypothesisColumn)
   independents <- checkIndependent(independents,suppressConstant)
   if(transform != "simple" & transform != "leverage" & transform != "none")
@@ -50,19 +51,19 @@ bootWildCI <- function(dependent,independents,repetitions,hypothesisColumn,alpha
 
 
   #Creating t-values for each bootstrap iteration
-  t_vals <- runWildCI(y_u_star[[1]],y_u_star[[2]],independents,hypothesisColumn,invXtX,invXtX_Xt,t_vec = c())
+  t_vals <- runWildCI(y_u_star[[1]],y_u_star[[2]],independents,hypothesisColumn,b_ols,invXtX,invXtX_Xt,t_vec = c())
   t_vals <- sort(t_vals)
 
   crit_low <- t_vals[(alpha/2)*(repetitions+1)]
   crit_high <- t_vals[(1-alpha/2)*(repetitions+1)]
 
-  ci <- c(b_ols[2]-crit_high*se_ols[2],b_ols[2]-crit_low*se_ols[2])
+  ci <- c(b_ols[hypothesisColumn]-crit_high*se_ols[hypothesisColumn],b_ols[hypothesisColumn]-crit_low*se_ols[hypothesisColumn])
 
 
-  print(paste0("The alpha = ",alpha," confidence interval is [",ci[1],", ",ci[2]," for the coefficient of variable ",hypothesisColumn," in the matrix of independents using ",repetitions," bootstrap repetitions."))
+  print(paste0("The alpha = ",alpha," confidence interval is [",ci[1],", ",ci[2],"] for the coefficient of variable ",hypothesisColumnSkipCons," in the matrix of independents using ",repetitions," bootstrap repetitions."))
   return(ci)
 }
-setupWildCI <- function(dep,indep,b_ols,u_ols,repetitions,rv,invXtX_Xt, transform){
+setupWildCI <- function(dep,indep,b_ols,u_ols,repetitions,rv,invXtX_Xt,transform){
   n <- length(dep)
   k <- ncol(indep)
 
